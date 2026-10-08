@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lift Kara De: interface lifting in the browser</title>
+    <meta name="description" content="A browser-only demo of interface lifting: an on-device WebLLM model calls typed, self-checking tools instead of clicking a screen." />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Lift Kara De</h1>
+        <p class="tag">Interface lifting in the browser: the model makes one decision, a typed tool does the work and checks it.</p>
+      </div>
+      <a class="repo" href="https://github.com/vishalmysore/liftKaraDe" target="_blank" rel="noopener">GitHub</a>
+    </header>
+
+    <main>
+      <section class="card" id="model-card">
+        <h2>Model</h2>
+        <div class="row">
+          <select id="model" aria-label="Model"></select>
+          <button id="load">Load model</button>
+          <label class="check"><input type="checkbox" id="rules" checked /> Rules first (skip the model when a regex can fill the arguments)</label>
+        </div>
+        <div id="model-status" class="status">No model loaded. With "Rules first" on, the example requests run without one.</div>
+        <progress id="progress" value="0" max="1" hidden></progress>
+      </section>
+
+      <section class="card">
+        <h2>Request</h2>
+        <div class="row">
+          <input id="request" type="text" autocomplete="off" aria-label="Request" placeholder="a 10 marla house with 3 bedrooms" />
+          <button id="run" class="primary">Run</button>
+        </div>
+        <div class="row">
+          <label class="attach">Attach images <input type="file" id="files" accept="image/*" multiple /></label>
+          <span id="attached" class="status"></span>
+        </div>
+        <div id="examples" class="chips"></div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Trace</h2>
+          <ol id="trace" class="trace"></ol>
+        </section>
+        <section class="card">
+          <h2>Result</h2>
+          <div id="result" class="result"><p class="status">Run a request to see the files and the checks.</p></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>Ledger</h2>
+        <div class="scroll"><table id="ledger"></table></div>
+        <p class="status">
+          The first row is the screen-agent baseline reported in Fareed Khan's article, not measured here. Every other row is measured in this tab.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      Inspired by Fareed Khan's
+      <a href="https://medium.com/@fareedkhandev/cf2bda5c54e7" target="_blank" rel="noopener">Building Fast Computer Agents to Solve Complex Tasks</a>
+      and his <a href="https://github.com/FareedKhan-dev/ai-pc" target="_blank" rel="noopener">ai-pc</a> code. Everything here runs in your browser.
+    </footer>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

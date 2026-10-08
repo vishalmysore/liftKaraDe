@@ -1,0 +1,84 @@
+:root {
+  --bg: #f5f3ee;
+  --card: #ffffff;
+  --ink: #14213d;
+  --muted: #5d6675;
+  --line: #dcd8ce;
+  --accent: #1f6f5c;
+  --accent-ink: #ffffff;
+  --pass: #1f7a4d;
+  --fail: #c0392b;
+  --code: #f0ede5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c;
+    --card: #1b212a;
+    --ink: #e8eaee;
+    --muted: #9aa3b0;
+    --line: #2d3541;
+    --accent: #3fb394;
+    --accent-ink: #0c1512;
+    --pass: #5fd39a;
+    --fail: #ff7a6b;
+    --code: #232b36;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+header, main, footer { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-top: 22px; }
+h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.tag { margin: 4px 0 0; color: var(--muted); }
+a { color: var(--accent); }
+.repo { white-space: nowrap; padding-top: 8px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; min-width: 0; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.grid .card { margin-top: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+input[type="text"], select {
+  flex: 1 1 260px; min-width: 0; padding: 9px 11px; font: inherit; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+button {
+  padding: 9px 16px; font: inherit; font-weight: 600; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:disabled { opacity: 0.55; cursor: default; }
+.check, .attach, .status { color: var(--muted); font-size: 13px; }
+.status { margin: 6px 0 0; }
+progress { width: 100%; margin-top: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { font-weight: 400; font-size: 13px; padding: 6px 10px; text-align: left; }
+.trace { list-style: none; margin: 0; padding: 0; font: 12.5px/1.5 Consolas, "Cascadia Mono", Menlo, monospace; }
+.trace li { display: grid; grid-template-columns: 52px 54px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.trace li:first-child { border-top: 0; }
+.trace .k { font-weight: 700; color: var(--accent); }
+.trace .s { color: var(--muted); text-align: right; }
+.trace .t { overflow-wrap: anywhere; white-space: pre-wrap; }
+.result img { display: block; max-width: 100%; max-height: 520px; margin: 0 auto 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.result .files { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.result .files a { padding: 5px 10px; background: var(--code); border-radius: 6px; text-decoration: none; font-size: 13px; }
+.checks { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.checks li { padding: 2px 0 2px 46px; text-indent: -46px; }
+.checks b { display: inline-block; width: 42px; text-indent: 0; }
+.pass b { color: var(--pass); }
+.fail b { color: var(--fail); }
+.refused { padding: 10px 12px; background: var(--code); border-left: 3px solid var(--fail); border-radius: 4px; }
+.notes { color: var(--muted); font-size: 13px; margin: 8px 0 0; padding-left: 18px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+th { color: var(--muted); font-weight: 600; }
+tr.quoted td { color: var(--muted); }
+td small { display: block; font-size: 11.5px; }
+footer { padding: 22px 16px 36px; color: var(--muted); font-size: 13px; }
