@@ -68,7 +68,7 @@ There is no Photoshop in a browser, but the PSD format is documented. `src/apps/
 `write_psd`: a header, one record per layer, each layer's raw channels, then the flattened picture. The verifier
 reopens the bytes with [ag-psd](https://github.com/Agamnentzar/ag-psd), a reader that knows nothing about the writer,
 compares every layer's name and box, restacks the decoded layers and compares the result with the stored flattened
-picture pixel for pixel.
+picture pixel for pixel. Two more checks compare the layers with the request: every file and every quoted phrase it names has to be on a layer.
 
 ![The Eid Sale poster as a 4-layer PSD](img/poster.png)
 
@@ -107,7 +107,7 @@ was given actually appears in the request. With that change the same model wrote
 
 ![The 1.5B model fills the poster arguments but drops the logo; the check fails 4 of 5](img/model-run.jpg)
 
-The PSD it produced was valid, so the three file checks passed. The "asked versus delivered" check failed, and the
+The PSD it produced was valid, so the three file checks passed, and so did the check on the quoted text. The "asked versus delivered" check failed, and the
 result came back as 4 of 5 with the reason: every file the request names should be a layer, and `logo.png` was not.
 An earlier, more nested schema did worse (an empty size and no image layers at all), which is why the arguments are
 now flat: `width`, `height`, and one `content` field per layer.
@@ -120,7 +120,7 @@ Measured in this tab on an integrated GPU, with the article's screen-agent basel
 |---|---|---|---|---|---|
 | CapCut filter, screen agent (reported in the article, not measured here) | 13 | 0 | 30k-42k | 155 s | failed |
 | house plan, rules lane | 0 | 1 | 0 | 0.04 s | 18/18 |
-| poster, rules lane | 0 | 1 | 0 | 0.1 to 1.1 s | 3/3 |
+| poster, rules lane | 0 | 1 | 0 | 0.1 to 1.1 s | 5/5 |
 | house plan, Qwen2.5-1.5B fills the arguments | 1 | 1 | 177 | 7.7 s | 18/18 |
 | poster, Qwen2.5-1.5B fills the arguments | 1 | 1 | 253 | 35.8 s | 4/5 |
 
