@@ -1,148 +1,149 @@
-# Interface Lifting in a Browser Tab
+# Fast AI Agents in a Browser Tab
 
-*A small WebLLM study of the idea behind Fareed Khan's fast computer agent.*
-
-> **Credit.** This project is inspired by Fareed Khan's article
-> [Building Fast Computer Agents to Solve Complex Tasks](https://medium.com/@fareedkhandev/cf2bda5c54e7)
-> and his open-source [ai-pc](https://github.com/FareedKhan-dev/ai-pc) repository. The idea, the tool contract, the
-> ledger, the Eid Sale poster and the 10 marla house are his. What is new here is the setting: no server, no API key,
-> no installed program. Everything, the model included, runs in one browser tab.
+*Interface lifting with an on-device model: no server, no API key, nothing to install.*
 
 Live demo: https://vishalmysore.github.io/liftKaraDe/ · Code: https://github.com/vishalmysore/liftKaraDe
 
-## The idea in one paragraph
+> Inspired by Fareed Khan's article
+> [Building Fast Computer Agents to Solve Complex Tasks](https://medium.com/@fareedkhandev/cf2bda5c54e7)
+> and his open-source [ai-pc](https://github.com/FareedKhan-dev/ai-pc) project, which introduced me to interface
+> lifting. This post takes that idea into the browser.
 
-A screen agent looks at a screenshot, asks a model where to click, clicks, waits, and repeats. Every click costs a
-model call. Fareed Khan's article argues that the slow part is the interface, not the model, and proposes
-*interface lifting*: give the model each program feature as a typed tool that drives the program through its own
-file format, command line or API. The model makes one decision for a whole unit of work. The tool does the work,
-checks its own output, and sends back a short piece of JSON instead of a picture.
+## The problem
 
-## Why this matters even more in a browser
+AI agents that use a computer usually work the way a person does. They look at a screenshot, decide where to click,
+click, wait, and look again. Every click is a call to a large model with a large picture attached.
 
-A hosted model answers a tool call in a second or two. A model running on a laptop's integrated GPU through WebGPU
-is far slower, and its context window is a few thousand tokens. On the machine used for this write-up, a 1.5B model
-took 6 to 9 seconds for a call with about 180 input tokens and 36 output tokens. A screen loop of 13 model calls is
-not slow on that hardware, it is unusable. One call per task is the only budget that works.
+That has three costs:
 
-So the three things the article treats as optimisations become requirements:
+- **It is slow.** A task with 40 clicks is 40 model calls, one after another.
+- **It is expensive.** Each screenshot costs thousands of tokens.
+- **It is fragile.** All 40 clicks have to land correctly, and a screenshot cannot prove the result is right.
 
-1. **A shortlist**, because the tool schemas have to fit in the context at all.
-2. **One decision per task**, because every call costs seconds.
-3. **Text results**, because there is no room for pictures in the prompt.
+Now try to run that agent on a small model inside a browser, on a laptop's own graphics card. A single model call
+takes several seconds. Forty of them is not slow, it is unusable. So if we want private, free, on-device agents, we
+need a design that asks the model far less.
 
-## What the ai-pc code actually does
+## The idea: interface lifting
 
-Reading the repository next to the article was useful. The article explains the design with a `@tool` decorator and
-model function calling. The repository is built *rules first*: `assistant/router.py` scores each program family with
-regex signals, and a model is asked only when the rules cannot decide. That is the design that suits a small local
-model, so this demo follows the repository:
+Most work a program does ends up as a file, and a file can be created by code. A Photoshop poster is a `.psd` file.
+An AutoCAD drawing is a `.dxf` file. Neither needs anyone to click through the program's window.
 
-- Regex signals pick the tool group. A group is a clear winner at a score of 5 or more with a lead of 1.5 or more.
-- A per-tool rules lane tries to fill the arguments with no model at all.
-- When the rules cannot, the model fills them, and its reply is constrained to the tool's JSON schema while it decodes,
-  so it always parses.
-- The reply to the user is templated from the checked result. There is no second model call to rephrase it.
+Interface lifting means giving the model each feature as a **ready-made function** instead of a screen:
 
-## The tool contract
+- The model reads the request and decides which function to call and with what inputs. That is one decision.
+- Code does the whole job and creates the real file.
+- The same code checks its own output and reports pass or fail.
 
-Each tool has the four parts from the article, plus the optional rules lane:
+The model goes from 40 small decisions ("click here") to one large one ("make a poster with these four layers").
+
+## What this demo does
+
+Lift Kara De is a single web page. You type a request, and a real file comes back that opens in the real program.
+
+1. **Pick the function.** Simple keyword rules look at your sentence. "marla" and "bedrooms" point to the house plan
+   function, "photoshop" or "poster" to the poster function. Only the matching function is shown to the model, which
+   keeps the prompt tiny.
+2. **Fill in the inputs.** For plainly worded requests a pattern match does this instantly, with no model at all.
+   Otherwise a small model running in the tab (WebLLM on WebGPU) fills them in, and its answer is forced to follow
+   the function's input format, so it is always well formed.
+3. **Do the work.** Plain code in the page builds the file.
+4. **Check the work.** The function reads its own file back with an independent reader and lists what passed.
+
+Each function is declared the same way: a description the model reads, the inputs it takes, and the code behind it.
 
 ```ts
 tool({
   name: "draw_house_plan",
-  group: "cad",                       // the shortlist puts whole groups in the prompt
-  effect: "local",                    // "outward" tools would wait for a yes
-  description: "Draw a ground floor plan as a DXF for AutoCAD ...",   // all the model ever learns
+  description: "Draw a ground floor plan as a DXF for AutoCAD ...",   // all the model ever sees
   parameters: { type: "object", properties: { plot: { type: "string" }, bedrooms: { type: "integer" } } },
-  fn: drawHousePlan,                  // does the work and returns its own checks
-  rules,                              // fills the arguments from a regex, or returns null
+  fn: drawHousePlan,   // does the work and returns its own checks
+  rules,               // fills the inputs from the sentence when it can, with no model
 });
 ```
 
-And each tool returns the same shape: `ok`, a summary, files, and the list of checks it ran.
+## Example 1: a layered Photoshop poster
 
-## Tool 1: a layered PSD, written byte by byte
+Request: *"photoshop file 1080x1080: background shop.jpg; logo logo.png top-left; title 'Eid Sale' white; subtitle
+'20% off' yellow"*
 
-There is no Photoshop in a browser, but the PSD format is documented. `src/apps/psd.ts` is a port of the article's
-`write_psd`: a header, one record per layer, each layer's raw channels, then the flattened picture. The verifier
-reopens the bytes with [ag-psd](https://github.com/Agamnentzar/ag-psd), a reader that knows nothing about the writer,
-compares every layer's name and box, restacks the decoded layers and compares the result with the stored flattened
-picture pixel for pixel. Two more checks compare the layers with the request: every file and every quoted phrase it names has to be on a layer.
+The page writes a real PSD, byte by byte, with four named layers that stay movable in Photoshop, GIMP or Photopea.
+Then it reopens the file with a separate PSD reader and confirms that every layer is there, in the right place, and
+that the flattened picture matches the layers stacked.
 
-![The Eid Sale poster as a 4-layer PSD](img/poster.png)
+![The Eid Sale poster as a 4-layer PSD, with its checks](img/poster.png)
 
-The file downloads and is a real PSD with four named, movable layers.
+By hand, or by a screen agent, this is about 40 actions. Here it is one function call.
 
-## Tool 2: a house plan as a DXF
+## Example 2: a house plan for AutoCAD
 
-"A 10 marla house with 3 bedrooms" is a 35 by 65 foot plot. The tool searches 6,000 candidate layouts: rooms in bands
-from the road back, each candidate scored for room areas, corridor-shaped rooms, daylight and doors, with 40 penalty
-points for any room nobody can walk to. It writes the best one as a DXF in inches and as an SVG preview.
+Request: *"a 10 marla house with 3 bedrooms"*
+
+A 10 marla plot is 35 by 65 feet. The function tries 6,000 room layouts, scores each one (room sizes, daylight,
+whether every room can be reached through a door), keeps the best, and writes it as an AutoCAD drawing in true
+units. It then reads the drawing back and runs 18 checks. The whole thing takes about 40 milliseconds.
 
 ![A 10 marla house plan, checked 18 of 18](img/house-plan.png)
 
-The 18 checks are of four kinds: one on the brief, six rules about the plan (every room reachable, no overlaps, each
-bedroom has a bath), nine read-backs of the saved DXF through
-[dxf-parser](https://github.com/gdsestimating/dxf-parser), and two on the sheet. The whole tool call took about 40
-milliseconds.
+## A clear "no" instead of a wrong answer
 
-## Refusals are results
+Ask for the same house at a scale of 1:100 and the plan will not fit on the sheet. The function does not draw
+something wrong. It refuses, explains why, and says what would work.
 
-Ask for the same house at 1:100 and the tool does not draw something wrong. It refuses, and says what would work:
+![The function refuses 1:100 and names the scale that fits](img/refusal.png)
 
-![The tool refuses 1:100 and names the scale that fits](img/refusal.png)
+## Why the checks matter
 
-## What the small model got wrong, and what caught it
+Small models make mistakes, and that is exactly why each function checks its own output.
 
-These are the interesting results, and the reason the verifier is the most important part of the contract.
+In one run, a 1.5 billion parameter model was asked for the four-layer poster and left the logo out. The file it
+produced was a perfectly valid PSD. But one of the checks compares the result with the request, and it failed: the
+request named `logo.png`, and no layer used it. The result came back as 4 of 5, with the reason.
 
-**It copied an example out of the tool's manual.** The first version of the description said
-`plot: '10 marla', '1 kanal' or '35 x 65 ft'`. Asked for "a 5 marla plot with 2 bedrooms", Qwen2.5-1.5B wrote
-`"plot": "10 marla"`. Every geometry check passed, because a 10 marla plan is a perfectly valid plan. The fix had two
-parts: the description now says `'<n> marla'` with no copyable example, and the tool gained a check that the plot it
-was given actually appears in the request. With that change the same model wrote `"5 marla"`.
+![The model drops the logo, and the check catches it](img/model-run.jpg)
 
-**It dropped a layer.** Asked for the four-layer poster, the same model wrote three layers and left the logo out:
+This is what makes a small on-device model usable for real work. It does not have to be right every time, because
+the mistake is caught at the step that made it, and reported in plain words.
 
-![The 1.5B model fills the poster arguments but drops the logo; the check fails 4 of 5](img/model-run.jpg)
+## The numbers
 
-The PSD it produced was valid, so the three file checks passed, and so did the check on the quoted text. The "asked versus delivered" check failed, and the
-result came back as 4 of 5 with the reason: every file the request names should be a layer, and `logo.png` was not.
-An earlier, more nested schema did worse (an empty size and no image layers at all), which is why the arguments are
-now flat: `width`, `height`, and one `content` field per layer.
+Measured in a browser tab on a laptop's integrated graphics:
 
-## The ledger
+| Task | Model calls | Time | Checks |
+|---|---|---|---|
+| House plan, inputs filled by rules | 0 | 0.04 s | 18/18 |
+| Poster, inputs filled by rules | 0 | 0.1 to 1.1 s | 5/5 |
+| House plan, inputs filled by the on-device model | 1 | about 8 s | 18/18 |
+| Poster, inputs filled by the on-device model | 1 | about 36 s | 4/5 |
 
-Measured in this tab on an integrated GPU, with the article's screen-agent baseline quoted for scale:
+The work itself takes milliseconds. Nearly all the time is the model thinking, so the fastest design is the one that
+asks the model the least: at most once per task, and not at all when the request is clear.
 
-| task | model calls | tool calls | input tokens | seconds | checks |
-|---|---|---|---|---|---|
-| CapCut filter, screen agent (reported in the article, not measured here) | 13 | 0 | 30k-42k | 155 s | failed |
-| house plan, rules lane | 0 | 1 | 0 | 0.04 s | 18/18 |
-| poster, rules lane | 0 | 1 | 0 | 0.1 to 1.1 s | 5/5 |
-| house plan, Qwen2.5-1.5B fills the arguments | 1 | 1 | 177 | 7.7 s | 18/18 |
-| poster, Qwen2.5-1.5B fills the arguments | 1 | 1 | 253 | 35.8 s | 4/5 |
+## Where this is useful
 
-The comparison with the first row is loose: it is a different task on a different model. What the table does show is
-the shape of the cost. The tool work is milliseconds. All the time is the model, so the design that wins is the one
-that asks the model least. The very first model call after loading was much slower (about 49 seconds) while shaders
-and the grammar compiled.
+- **Private by design.** The model and the files stay on your machine. Nothing is uploaded, which matters for
+  client designs, financial sheets or anything confidential.
+- **Free to run.** There is no API bill and no server to maintain. The page is static and can be hosted anywhere.
+- **Nothing to install.** A link is enough. It works on any laptop with a modern browser.
+- **Trustworthy output.** Every result arrives with the checks it passed, so you know what was verified.
+- **A pattern you can reuse.** Any task that ends in a file fits: invoices, spreadsheets, slide decks, SVG graphics,
+  calendar files, subtitles, video timelines. Write the function and its checks once, and a small model can use it.
 
 ## Limits
 
-- The outputs are checked by independent parsers, not by Photoshop or AutoCAD themselves. The PSD and DXF are
-  standard files, but they were not opened in those programs for this write-up.
-- The plan search is a simple band layout. On plots under 50 feet wide the kitchen and lounge never get an outside
-  wall, and the tool says so in its notes.
-- A 1.5B model is at the edge of what works for nested arguments. Larger models in the picker (Qwen2.5-3B,
-  Hermes-3-Llama-3.2-3B) were not measured here.
-- Two tools only. The article's chains across programs, approval gate, accessibility-tree agent and skill compiler
-  are the next steps; in a browser the accessibility tree becomes the DOM.
+- The files are verified by independent readers in the browser, not by Photoshop or AutoCAD themselves.
+- A browser cannot drive programs installed on your computer. It can only create the files they open.
+- The house layout is a simple band design, good for a first draft, not a replacement for an architect.
+- Very small models struggle with long, nested inputs. Larger ones in the model picker should do better.
 
-## Run it
+## What comes next
 
-Open the [live demo](https://vishalmysore.github.io/liftKaraDe/). The examples run immediately in the rules lane.
-To watch a model fill the arguments, load one (WebGPU needed, the weights download once) and untick "Rules first".
+Chaining functions together from one sentence (draw the plan, then render it in 3D), an approval step before
+anything is shared, and learned shortcuts that replay a task with no model call at all.
 
-Thanks to Fareed Khan for the article and for publishing the code behind it.
+## Try it
+
+Open the [live demo](https://vishalmysore.github.io/liftKaraDe/) and click any example. They run immediately. To
+watch a model fill in the inputs, load one (the weights download once) and untick "Rules first".
+
+Thanks to Fareed Khan for the original article and for sharing the code behind it.
