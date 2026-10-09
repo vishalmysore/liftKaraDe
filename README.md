@@ -1,7 +1,8 @@
-# Lift Kara De
+# Lift Kara De: a local AI agent in the browser with WebLLM
 
-Interface lifting in the browser. An on-device model (WebLLM on WebGPU) makes one decision per task, and a typed tool does
-the work through a file format, then checks its own output and returns a few hundred characters of JSON.
+A private AI agent that runs in one browser tab, with no server and no API key. An on-device model (WebLLM on WebGPU)
+makes one decision per task, and a typed tool does the work through a file format, checks its own output and returns a
+few hundred characters of JSON. This is interface lifting: tool calling instead of screenshots and clicks.
 
 **Live demo:** https://vishalmysore.github.io/liftKaraDe/
 
